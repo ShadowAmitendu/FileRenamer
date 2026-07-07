@@ -1,0 +1,509 @@
+<Window
+    x:Class="FileRenamer.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid Background="Transparent">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- TitleBar -->
+            <RowDefinition Height="*"/>    <!-- NavigationView -->
+        </Grid.RowDefinitions>
+
+        <!-- ══ NATIVE MODERN WINUI 3 TITLE BAR (Row 0) ══ -->
+        <TitleBar Grid.Row="0"
+                  x:Name="AppTitleBar"
+                  Title="FileRenamer"
+                  Subtitle="AI-powered batch file renaming"
+                  Background="Transparent"
+                  Height="48"
+                  IsBackButtonVisible="False"
+                  IsPaneToggleButtonVisible="True"
+                  PaneToggleRequested="AppTitleBar_PaneToggleRequested">
+            <TitleBar.IconSource>
+                <ImageIconSource ImageSource="ms-appx:///Assets/appicon.png" />
+            </TitleBar.IconSource>
+            <TitleBar.Content>
+                <!-- Model selector -->
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <TextBlock Text="Model"
+                               Style="{ThemeResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               VerticalAlignment="Center"/>
+                    <ComboBox x:Name="ModelCombo"
+                               Width="210"
+                               IsEditable="True"
+                               PlaceholderText="Loading models…"
+                               SelectionChanged="ModelCombo_SelectionChanged"/>
+                </StackPanel>
+            </TitleBar.Content>
+        </TitleBar>
+
+        <!-- ══ NAVIGATION VIEW (Row 1) ══ -->
+        <NavigationView Grid.Row="1"
+                        x:Name="MainNavView"
+                        PaneDisplayMode="Left"
+                        IsBackButtonVisible="Collapsed"
+                        IsSettingsVisible="True"
+                        IsPaneToggleButtonVisible="False"
+                        IsTitleBarAutoPaddingEnabled="True"
+                        SelectionChanged="MainNavView_SelectionChanged">
+            <NavigationView.MenuItems>
+                <NavigationViewItem Content="All Files (0)" Tag="All" Icon="AllApps"/>
+                <NavigationViewItemHeader Content="Library Shelves"/>
+                <NavigationViewItem Content="Books (0)" Tag="Books" Icon="Library"/>
+                <NavigationViewItem Content="Research Papers (0)" Tag="Research Papers" Icon="Document"/>
+                <NavigationViewItem Content="Documentation (0)" Tag="Documentation" Icon="Document"/>
+                <NavigationViewItem Content="Courses (0)" Tag="Courses" Icon="Contact"/>
+                <NavigationViewItem Content="Notes (0)" Tag="Notes" Icon="PostUpdate"/>
+                <NavigationViewItem Content="Projects (0)" Tag="Projects" Icon="AllApps"/>
+                <NavigationViewItem Content="Software (0)" Tag="Software" Icon="Import"/>
+                <NavigationViewItem Content="Media (0)" Tag="Media" Icon="Pictures"/>
+                <NavigationViewItem Content="Personal (0)" Tag="Personal" Icon="People"/>
+                <NavigationViewItem Content="Finance (0)" Tag="Finance" Icon="Shop"/>
+                <NavigationViewItem Content="Government (0)" Tag="Government" Icon="Document"/>
+                <NavigationViewItem Content="Certificates (0)" Tag="Certificates" Icon="PostUpdate"/>
+                <NavigationViewItem Content="Archive (0)" Tag="Archive" Icon="Folder"/>
+                <NavigationViewItem Content="Unknown (0)" Tag="Unknown" Icon="Help"/>
+            </NavigationView.MenuItems>
+
+            <!-- Modern Card Wrapper for the Main Workspace & Settings -->
+            <Grid Margin="12,12,16,16">
+                <Border x:Name="MainWorkspace"
+                        Background="{ThemeResource LayerFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Visibility="Visible">
+                    <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>  <!-- Toolbar    -->
+                        <RowDefinition Height="Auto"/>  <!-- Filters    -->
+                        <RowDefinition Height="Auto"/>  <!-- Status     -->
+                        <RowDefinition Height="Auto"/>  <!-- Error      -->
+                        <RowDefinition Height="Auto"/>  <!-- Progress Bar -->
+                        <RowDefinition Height="*"/>     <!-- File list  -->
+                        <RowDefinition Height="Auto"/>  <!-- Footer     -->
+                    </Grid.RowDefinitions>
+
+        <!-- ══ TOOLBAR ══ -->
+        <Border Grid.Row="0"
+                Background="Transparent"
+                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                BorderThickness="0,0,0,1"
+                Padding="16,12">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button x:Name="PickFolderBtn" Click="PickFolderBtn_Click">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE8B7;" FontSize="14"/>
+                        <TextBlock Text="Select Folder"/>
+                    </StackPanel>
+                </Button>
+
+                <Button x:Name="PickFileBtn" Click="PickFileBtn_Click">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE8E5;" FontSize="14"/>
+                        <TextBlock Text="Select File"/>
+                    </StackPanel>
+                </Button>
+
+                <Rectangle Width="1"
+                           Fill="{ThemeResource DividerStrokeColorDefaultBrush}"
+                           VerticalAlignment="Stretch"
+                           Margin="4,4"/>
+
+                <Button x:Name="ChangeLibraryPathBtn" Click="ChangeLibraryPathBtn_Click">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE8F4;" FontSize="14"/>
+                        <TextBlock Text="Set Destination"/>
+                    </StackPanel>
+                </Button>
+                <TextBlock x:Name="LibraryPathText" 
+                           Text="No Destination Selected"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           Style="{ThemeResource CaptionTextBlockStyle}"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"
+                           MaxWidth="250"/>
+
+                <Rectangle Width="1"
+                           Fill="{ThemeResource DividerStrokeColorDefaultBrush}"
+                           VerticalAlignment="Stretch"
+                           Margin="4,4"/>
+
+                <Button x:Name="GenerateBtn"
+                        Style="{StaticResource AccentButtonStyle}"
+                        Click="GenerateBtn_Click">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE9F5;" FontSize="14"/>
+                        <TextBlock Text="Generate Suggestions"/>
+                    </StackPanel>
+                </Button>
+
+                <Button x:Name="CancelBtn"
+                        Visibility="Collapsed"
+                        Click="CancelBtn_Click">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE769;" FontSize="14"/>
+                        <TextBlock Text="Cancel"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Border>
+
+        <!-- ══ FILE TYPE FILTERS dropdown ══ -->
+        <Border Grid.Row="1"
+                Background="{ThemeResource LayerFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                BorderThickness="0,0,0,1"
+                Padding="16,8">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="Filter by Type:"
+                           Style="{ThemeResource CaptionTextBlockStyle}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           VerticalAlignment="Center"/>
+                <ComboBox x:Name="FileTypeCombo"
+                          Width="220"
+                          SelectionChanged="FileTypeCombo_SelectionChanged">
+                    <ComboBoxItem Content="All Files (*.*)"/>
+                </ComboBox>
+            </StackPanel>
+        </Border>
+
+        <!-- ══ STATUS INFOBAR ══ -->
+        <InfoBar x:Name="StatusBar"
+                 Grid.Row="2"
+                 Severity="Informational"
+                 IsOpen="False"
+                 IsClosable="True"
+                 Margin="12,6,12,0"/>
+
+        <!-- ══ ERROR INFOBAR ══ -->
+        <InfoBar x:Name="ErrorBar"
+                 Grid.Row="3"
+                 Severity="Error"
+                 Title="AI Error"
+                 IsOpen="False"
+                 IsClosable="True"
+                 Margin="12,4,12,0"/>
+
+        <!-- ══ BATCH PROGRESS BAR ══ -->
+        <ProgressBar x:Name="BatchProgressBar"
+                     Grid.Row="4"
+                     Minimum="0"
+                     Maximum="100"
+                     Value="0"
+                     Visibility="Collapsed"
+                     Margin="16,8,16,8"
+                     Height="4"/>
+
+        <!-- ══ FILE LIST ══ -->
+        <Grid Grid.Row="5">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Column headers -->
+            <Border Grid.Row="0"
+                    Padding="20,8"
+                    BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                    BorderThickness="0,0,0,1">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="32"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="28"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="100"/>
+                        <ColumnDefinition Width="130"/>
+                        <ColumnDefinition Width="70"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="1" Text="ORIGINAL NAME"
+                               Style="{ThemeResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               CharacterSpacing="80"/>
+                    <TextBlock Grid.Column="3" Text="SUGGESTED NAME"
+                               Style="{ThemeResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               CharacterSpacing="80"/>
+                    <TextBlock Grid.Column="4" Text="STATUS"
+                               Style="{ThemeResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               CharacterSpacing="80"
+                               HorizontalAlignment="Center"/>
+                </Grid>
+            </Border>
+
+            <!-- ListView with built-in virtualization (no ScrollViewer wrapper) -->
+            <Grid Grid.Row="1">
+                <ListView x:Name="ItemsList"
+                          Background="Transparent"
+                          BorderThickness="0"
+                          Padding="12,4,12,4"
+                          SelectionMode="None"
+                          DoubleTapped="ItemsList_DoubleTapped">
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="Padding"                    Value="0"/>
+                            <Setter Property="Margin"                     Value="0"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            <Setter Property="Background"                 Value="Transparent"/>
+                        </Style>
+                    </ListView.ItemContainerStyle>
+
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="{ThemeResource ControlCornerRadius}"
+                                    Padding="12,10"
+                                    Margin="0,3">
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="32"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="28"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="100"/>
+                                        <ColumnDefinition Width="130"/>
+                                        <ColumnDefinition Width="70"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Select checkbox -->
+                                    <CheckBox Grid.Column="0"
+                                              IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                              VerticalAlignment="Center"
+                                              Margin="0"/>
+
+                                    <!-- Original name -->
+                                    <StackPanel Grid.Column="1"
+                                                VerticalAlignment="Center"
+                                                Spacing="2">
+                                        <TextBlock Text="{Binding OriginalName}"
+                                                   Style="{ThemeResource BodyStrongTextBlockStyle}"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding Extension}"
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    </StackPanel>
+
+                                    <!-- Arrow -->
+                                    <FontIcon Grid.Column="2"
+                                              Glyph="&#xE76C;"
+                                              FontSize="12"
+                                              Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                              VerticalAlignment="Center"
+                                              HorizontalAlignment="Center"/>
+
+                                    <!-- Editable suggestion & Shelving destination -->
+                                    <StackPanel Grid.Column="3" VerticalAlignment="Center" Spacing="4">
+                                        <TextBox Text="{Binding SuggestedName, Mode=TwoWay}"/>
+                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                            <FontIcon Glyph="&#xE8B7;" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                            <TextBlock Text="{Binding DestinationDisplay}"
+                                                       Style="{ThemeResource CaptionTextBlockStyle}"
+                                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                        </StackPanel>
+                                    </StackPanel>
+
+                                    <!-- Status badge -->
+                                    <Border Grid.Column="4"
+                                            Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                            CornerRadius="{ThemeResource ControlCornerRadius}"
+                                            Padding="8,4"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Status}"
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   HorizontalAlignment="Center"/>
+                                    </Border>
+
+                                    <!-- Individual move button -->
+                                    <Button Grid.Column="5"
+                                            Content="Rename &amp; Move"
+                                            Click="MoveItemBtn_Click"
+                                            VerticalAlignment="Center"
+                                            HorizontalAlignment="Center"
+                                            Style="{ThemeResource DefaultButtonStyle}"/>
+
+                                    <!-- Individual view/open button -->
+                                    <Button Grid.Column="6"
+                                            Content="Open"
+                                            Click="ViewFileBtn_Click"
+                                            VerticalAlignment="Center"
+                                            HorizontalAlignment="Center"
+                                            Style="{ThemeResource DefaultButtonStyle}"/>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+
+                <!-- Empty state overlay -->
+                <StackPanel x:Name="EmptyState"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Spacing="12"
+                            IsHitTestVisible="False">
+                    <FontIcon Glyph="&#xE8B7;"
+                              FontSize="48"
+                              HorizontalAlignment="Center"
+                              Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                    <TextBlock Text="No files loaded yet"
+                               Style="{ThemeResource SubtitleTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Text="Click 'Select Folder' or 'Select File' to get started"
+                               Style="{ThemeResource BodyTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                               HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+        </Grid>
+
+        <!-- ══ FOOTER ══ -->
+        <Border Grid.Row="6"
+                Background="Transparent"
+                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                BorderThickness="0,1,0,0"
+                Padding="16,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="24" VerticalAlignment="Center">
+                    <TextBlock x:Name="FileCountText"
+                               Style="{ThemeResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               VerticalAlignment="Center"/>
+
+                    <!-- API Quota Usage Bar -->
+                    <StackPanel x:Name="QuotaPanel"
+                                Orientation="Horizontal"
+                                Spacing="8"
+                                Visibility="Collapsed"
+                                VerticalAlignment="Center">
+                        <TextBlock Text="API Quota:" 
+                                   Style="{ThemeResource CaptionTextBlockStyle}" 
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   VerticalAlignment="Center"/>
+                        <ProgressBar x:Name="QuotaProgressBar"
+                                     Width="120"
+                                     Minimum="0"
+                                     Maximum="100"
+                                     Value="100"
+                                     Height="6"
+                                     VerticalAlignment="Center"/>
+                        <TextBlock x:Name="QuotaText" 
+                                   Text="100%" 
+                                   Style="{ThemeResource CaptionTextBlockStyle}" 
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                    <Button x:Name="RenameSelectedBtn"
+                            Content="Rename Selected"
+                            Click="RenameSelectedBtn_Click"/>
+                    <Button x:Name="RenameAllBtn"
+                            Content="Rename All"
+                            Click="RenameAllBtn_Click"/>
+                    <Button x:Name="MoveToLibraryBtn"
+                            Content="Move to Library"
+                            Style="{StaticResource AccentButtonStyle}"
+                            Click="MoveToLibraryBtn_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Border>
+
+                <!-- ══ SETTINGS WORKSPACE ══ -->
+                <Border x:Name="SettingsWorkspace"
+                        Background="{ThemeResource LayerFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Visibility="Collapsed">
+                    <ScrollViewer Padding="24">
+                        <StackPanel Spacing="20" MaxWidth="800" HorizontalAlignment="Left">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Settings" Style="{ThemeResource TitleTextBlockStyle}"/>
+                                <TextBlock Text="Configure AI Providers and API Keys" Style="{ThemeResource BodyTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            </StackPanel>
+                            
+                            <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+
+                            <!-- Provider Selection -->
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="AI Provider" Style="{ThemeResource SubtitleTextBlockStyle}"/>
+                                <TextBlock Text="Choose which LLM service to use for file classification and renaming." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <ComboBox x:Name="ProviderCombo" Width="300" SelectionChanged="ProviderCombo_SelectionChanged">
+                                    <ComboBoxItem Content="Ollama (Local)" Tag="Ollama"/>
+                                    <ComboBoxItem Content="OpenAI (Cloud)" Tag="OpenAI"/>
+                                    <ComboBoxItem Content="Google AI Studio (Gemini)" Tag="Google"/>
+                                </ComboBox>
+                            </StackPanel>
+
+                            <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+
+                            <!-- Ollama Settings Panel -->
+                            <StackPanel x:Name="OllamaSettingsPanel" Spacing="12">
+                                <TextBlock Text="Ollama Configurations (Local/Remote)" Style="{ThemeResource SubtitleTextBlockStyle}"/>
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="API Endpoint" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                    <TextBox x:Name="OllamaEndpointText" Width="500" PlaceholderText="http://localhost:11434/api/generate"/>
+                                </StackPanel>
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="API Key / Token (for remote instances)" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                    <PasswordBox x:Name="OllamaApiKeyText" Width="500" PasswordChar="●" PlaceholderText="Bearer token... (optional)"/>
+                                </StackPanel>
+                                <StackPanel Spacing="8" Margin="0,10,0,0">
+                                    <TextBlock Text="Pull Model from Ollama Library" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                    <TextBlock Text="Enter the model name (e.g. llama3.2, phi4) to download it from Ollama's registry." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <TextBox x:Name="PullModelNameText" Width="300" PlaceholderText="e.g. llama3.2"/>
+                                        <Button x:Name="PullModelBtn" Content="Pull Model" Click="PullModelBtn_Click"/>
+                                        <ProgressRing x:Name="PullProgressRing" IsActive="False" Width="20" Height="20" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <TextBlock x:Name="PullStatusText" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Visibility="Collapsed"/>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <!-- OpenAI Settings Panel -->
+                            <StackPanel x:Name="OpenAiSettingsPanel" Spacing="12" Visibility="Collapsed">
+                                <TextBlock Text="OpenAI Configurations" Style="{ThemeResource SubtitleTextBlockStyle}"/>
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="API Key" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                    <PasswordBox x:Name="OpenAiApiKeyText" Width="500" PasswordChar="●" PlaceholderText="sk-..."/>
+                                    <HyperlinkButton Content="Get OpenAI API Key" NavigateUri="https://platform.openai.com/api-keys" Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <!-- Google AI Studio Settings Panel -->
+                            <StackPanel x:Name="GoogleSettingsPanel" Spacing="12" Visibility="Collapsed">
+                                <TextBlock Text="Google AI Studio Configurations" Style="{ThemeResource SubtitleTextBlockStyle}"/>
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="API Key" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                    <PasswordBox x:Name="GoogleApiKeyText" Width="500" PasswordChar="●" PlaceholderText="AIzaSy..."/>
+                                    <HyperlinkButton Content="Get Google AI Studio API Key" NavigateUri="https://aistudio.google.com/app/apikey" Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+
+                            <!-- Save Button -->
+                            <Button x:Name="SaveSettingsBtn" Content="Save Settings" Style="{StaticResource AccentButtonStyle}" Width="150" Click="SaveSettingsBtn_Click"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </Grid>
+        </NavigationView>
+
+</Grid>
+</Window>

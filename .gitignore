@@ -1,0 +1,28 @@
+# Build folders
+bin/
+obj/
+
+# User-specific files
+*.user
+*.userosscache
+*.sln.docstates
+
+# Visual Studio files
+.vs/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+ARM64/
+
+# Temporary files
+*.tmp
+*.log
+crash.log
+output.log
+*.iss.bak
+Output/
+
+# .NET core files
+.ionide/
+.gemini/
