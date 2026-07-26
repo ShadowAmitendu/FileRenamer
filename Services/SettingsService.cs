@@ -14,6 +14,7 @@ public class AppSettings
     public string OpenAiModel { get; set; } = "gpt-4o-mini";
     public string GoogleApiKey { get; set; } = "";
     public string GoogleModel { get; set; } = "gemini-1.5-flash";
+    public int MaxParallelRequests { get; set; } = 2;
 }
 
 public static class SettingsService

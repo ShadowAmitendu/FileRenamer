@@ -487,24 +487,34 @@ public sealed partial class MainWindow : Window
         var token = _cts.Token;
         SetGenerating(true);
 
-        int done = 0;
+        int maxParallel = settings.MaxParallelRequests > 0 ? settings.MaxParallelRequests : 2;
+        using var semaphore = new SemaphoreSlim(maxParallel, maxParallel);
+        int completedCount = 0;
+        int totalCount = targetItems.Count;
+
+        SetStatus($"Generating suggestions ({maxParallel} parallel requests)...");
+
         try
         {
-            foreach (var item in targetItems)
+            var tasks = targetItems.Select(async item =>
             {
-                token.ThrowIfCancellationRequested();
-
-                item.Status = "Reading...";
+                await semaphore.WaitAsync(token);
                 try
                 {
+                    token.ThrowIfCancellationRequested();
+
+                    this.DispatcherQueue.TryEnqueue(() => item.Status = "Reading...");
                     var extraction = await Task.Run(
                         () => DocumentTextExtractor.Extract(item.FullPath), token);
 
                     if (extraction.Skipped)
                     {
-                        item.Status = $"Skipped ({extraction.SkipReason})";
-                        item.SuggestedName = item.OriginalName;
-                        continue;
+                        this.DispatcherQueue.TryEnqueue(() =>
+                        {
+                            item.Status = $"Skipped ({extraction.SkipReason})";
+                            item.SuggestedName = item.OriginalName;
+                        });
+                        return;
                     }
 
                     item.ExtractedText = extraction.Text;
@@ -514,13 +524,11 @@ public sealed partial class MainWindow : Window
                     string onlineMetadata = "";
                     if (item.Category == "Books")
                     {
-                        item.Status = $"Searching online metadata… ({done + 1}/{targetItems.Count})";
-                        SetStatus(item.Status);
+                        this.DispatcherQueue.TryEnqueue(() => item.Status = "Searching online metadata…");
                         onlineMetadata = await OnlineBookSearchService.SearchBookOnlineAsync(extraction.Text, item.OriginalName);
                     }
 
-                    item.Status = $"Asking model… ({done + 1}/{targetItems.Count})";
-                    SetStatus(item.Status);
+                    this.DispatcherQueue.TryEnqueue(() => item.Status = "Asking model…");
 
                     var result = await _ai.SuggestNameAsync(
                         originalName  : item.OriginalName,
@@ -533,27 +541,40 @@ public sealed partial class MainWindow : Window
                         onlineMetadata: onlineMetadata,
                         ct            : token);
 
-                    item.SuggestedName = result.SuggestedName;
-                    item.Category      = result.Category;
-                    item.TargetSubfolder = result.TargetSubfolder;
+                    this.DispatcherQueue.TryEnqueue(() =>
+                    {
+                        item.SuggestedName   = result.SuggestedName;
+                        item.Category        = result.Category;
+                        item.TargetSubfolder = result.TargetSubfolder;
+                        item.Status          = extraction.WasOcr ? "Ready (OCR)" : "Ready";
 
-                    item.Status = extraction.WasOcr ? "Ready (OCR)" : "Ready";
-                    done++;
-                    UpdateCategoryCounts();
+                        int count = Interlocked.Increment(ref completedCount);
+                        SetStatus($"Done {count}/{totalCount} suggestions ({maxParallel} parallel)...");
+                        UpdateCategoryCounts();
+                    });
                 }
                 catch (OperationCanceledException)
                 {
-                    item.Status = "Cancelled";
-                    throw;   // bubble up to outer catch
+                    this.DispatcherQueue.TryEnqueue(() => item.Status = "Cancelled");
+                    throw;
                 }
                 catch (Exception ex)
                 {
-                    item.Status = "Error";
-                    item.SuggestedName = item.OriginalName;
-                    ShowError($"Failed — {item.OriginalName}", ex.Message);
+                    this.DispatcherQueue.TryEnqueue(() =>
+                    {
+                        item.Status = "Error";
+                        item.SuggestedName = item.OriginalName;
+                        ShowError($"Failed — {item.OriginalName}", ex.Message);
+                    });
                 }
-            }
-            SetStatus($"Done — {done} suggestion{(done == 1 ? "" : "s")} generated.");
+                finally
+                {
+                    semaphore.Release();
+                }
+            }).ToList();
+
+            await Task.WhenAll(tasks);
+            SetStatus($"Done — {completedCount} suggestion{(completedCount == 1 ? "" : "s")} generated.");
         }
         catch (OperationCanceledException)
         {
@@ -819,6 +840,23 @@ do { candidate = Path.Combine(dir, $"{name}-{i++}{ext}"); }
         };
     }
 
+    private static void SelectComboItemByTag(ComboBox? combo, string tagValue)
+    {
+        if (combo == null) return;
+        foreach (ComboBoxItem item in combo.Items)
+        {
+            if (item.Tag as string == tagValue)
+            {
+                combo.SelectedItem = item;
+                return;
+            }
+        }
+        if (combo.Items.Count > 0 && combo.SelectedItem == null)
+        {
+            combo.SelectedIndex = 1; // Default 2 Parallel
+        }
+    }
+
     private void LoadSettingsToUi(AppSettings settings)
     {
         if (ProviderCombo == null) return;
@@ -841,6 +879,10 @@ do { candidate = Path.Combine(dir, $"{name}-{i++}{ext}"); }
         OpenAiApiKeyText.Password = settings.OpenAiApiKey;
         GoogleApiKeyText.Password = settings.GoogleApiKey;
 
+        int parallelVal = settings.MaxParallelRequests > 0 ? settings.MaxParallelRequests : 2;
+        SelectComboItemByTag(ParallelCombo, parallelVal.ToString());
+        SelectComboItemByTag(SettingsParallelCombo, parallelVal.ToString());
+
         UpdateSettingsPanelsVisibility(settings.Provider);
     }
 
@@ -860,6 +902,23 @@ do { candidate = Path.Combine(dir, $"{name}-{i++}{ext}"); }
         UpdateSettingsPanelsVisibility(provider);
     }
 
+    private void ParallelCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (ParallelCombo?.SelectedItem is ComboBoxItem item && int.TryParse(item.Tag as string, out int val))
+        {
+            var settings = SettingsService.LoadSettings();
+            if (settings.MaxParallelRequests != val)
+            {
+                settings.MaxParallelRequests = val;
+                SettingsService.SaveSettings(settings);
+            }
+            if (SettingsParallelCombo != null && (SettingsParallelCombo.SelectedItem as ComboBoxItem)?.Tag as string != val.ToString())
+            {
+                SelectComboItemByTag(SettingsParallelCombo, val.ToString());
+            }
+        }
+    }
+
     private void ModelCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (ModelCombo == null || ModelCombo.SelectedItem == null) return;
@@ -876,13 +935,25 @@ do { candidate = Path.Combine(dir, $"{name}-{i++}{ext}"); }
     private async void SaveSettingsBtn_Click(object sender, RoutedEventArgs e)
     {
         string provider = (ProviderCombo.SelectedItem as ComboBoxItem)?.Tag as string ?? "Ollama";
+        
+        int parallelVal = 2;
+        if (SettingsParallelCombo?.SelectedItem is ComboBoxItem pItem && int.TryParse(pItem.Tag as string, out int parsedP))
+        {
+            parallelVal = parsedP;
+        }
+        else if (ParallelCombo?.SelectedItem is ComboBoxItem pItem2 && int.TryParse(pItem2.Tag as string, out int parsedP2))
+        {
+            parallelVal = parsedP2;
+        }
+
         var settings = new AppSettings
         {
             Provider = provider,
             OllamaEndpoint = OllamaEndpointText.Text,
             OllamaApiKey = OllamaApiKeyText.Password,
             OpenAiApiKey = OpenAiApiKeyText.Password,
-            GoogleApiKey = GoogleApiKeyText.Password
+            GoogleApiKey = GoogleApiKeyText.Password,
+            MaxParallelRequests = parallelVal
         };
 
         var oldSettings = SettingsService.LoadSettings();
@@ -900,6 +971,8 @@ do { candidate = Path.Combine(dir, $"{name}-{i++}{ext}"); }
 
         SettingsService.SaveSettings(settings);
         ApplySettingsToService(settings);
+
+        SelectComboItemByTag(ParallelCombo, parallelVal.ToString());
 
         await LoadModelsAsync(GetCurrentProviderModel(settings));
 

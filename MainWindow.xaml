@@ -23,17 +23,33 @@
                 <ImageIconSource ImageSource="ms-appx:///Assets/appicon.png" />
             </TitleBar.IconSource>
             <TitleBar.Content>
-                <!-- Model selector -->
-                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <TextBlock Text="Model"
-                               Style="{ThemeResource CaptionTextBlockStyle}"
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                               VerticalAlignment="Center"/>
-                    <ComboBox x:Name="ModelCombo"
-                               Width="210"
-                               IsEditable="True"
-                               PlaceholderText="Loading models…"
-                               SelectionChanged="ModelCombo_SelectionChanged"/>
+                <!-- Model & Parallel selector -->
+                <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Text="Model"
+                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   VerticalAlignment="Center"/>
+                        <ComboBox x:Name="ModelCombo"
+                                   Width="200"
+                                   IsEditable="True"
+                                   PlaceholderText="Loading models…"
+                                   SelectionChanged="ModelCombo_SelectionChanged"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Text="Parallel"
+                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   VerticalAlignment="Center"/>
+                        <ComboBox x:Name="ParallelCombo"
+                                   Width="140"
+                                   SelectionChanged="ParallelCombo_SelectionChanged">
+                            <ComboBoxItem Content="1 (Sequential)" Tag="1"/>
+                            <ComboBoxItem Content="2 Parallel" Tag="2"/>
+                            <ComboBoxItem Content="3 Parallel" Tag="3"/>
+                            <ComboBoxItem Content="4 Parallel" Tag="4"/>
+                        </ComboBox>
+                    </StackPanel>
                 </StackPanel>
             </TitleBar.Content>
         </TitleBar>
@@ -447,6 +463,18 @@
                                     <ComboBoxItem Content="Ollama (Local)" Tag="Ollama"/>
                                     <ComboBoxItem Content="OpenAI (Cloud)" Tag="OpenAI"/>
                                     <ComboBoxItem Content="Google AI Studio (Gemini)" Tag="Google"/>
+                                </ComboBox>
+                            </StackPanel>
+
+                            <!-- Parallel Processing Selection -->
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Parallel Processing (Concurrency)" Style="{ThemeResource SubtitleTextBlockStyle}"/>
+                                <TextBlock Text="Set how many files to process in parallel (2 to 4 concurrent AI requests)." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <ComboBox x:Name="SettingsParallelCombo" Width="300">
+                                    <ComboBoxItem Content="1 (Sequential)" Tag="1"/>
+                                    <ComboBoxItem Content="2 Parallel Requests" Tag="2"/>
+                                    <ComboBoxItem Content="3 Parallel Requests" Tag="3"/>
+                                    <ComboBoxItem Content="4 Parallel Requests" Tag="4"/>
                                 </ComboBox>
                             </StackPanel>
 

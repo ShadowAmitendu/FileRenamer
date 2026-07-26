@@ -65,62 +65,299 @@ public class AiService
             ctx.AppendLine($"Parent folder     : {parentFolder}");
 
         string prompt =
-            "You are a file-renaming assistant. Analyze the document below, determine its category, and produce the best possible filename.\n\n" +
-            ctx.ToString() + "\n" +
-            metaBlock +
-            $"Document content (first ~{textCap} chars):\n" +
-            "```\n" + trimmed + "\n```\n\n" +
-            "## Naming rules\n" +
-            "1. PREFERRED FORMAT (use whenever title, author, or year can be identified):\n" +
-            "      Title - Author(s) - Edition - Year\n" +
-            "   Multiple Authors:\n" +
-            "      If there are multiple authors, you MUST list ALL of their names (separated by commas and 'and'). Do NOT abbreviate to 'et al.' or 'Group'.\n" +
-            "      If listing all authors causes the filename to exceed the 120-character limit, prioritize keeping the surnames of all authors and shortening their middle/first names or slightly truncating the title.\n" +
-            "   Examples:\n" +
-            "      Clean Code - Robert C Martin (2008)\n" +
-            "      The Pragmatic Programmer - Andrew Hunt and David Thomas (2nd Edition) (2020)\n" +
-            "      Data Structures and Algorithms in Java - Michael T Goodrich Roberto Tamassia and Michael H Goldwasser (6th Edition) (2014)\n" +
-            "      Design Patterns - Erich Gamma Richard Helm Ralph Johnson and John Vlissides (1994)\n\n" +
-            "2. For non-book documents (receipt, invoice, certificate, report, letter):\n" +
-            "   use the most important identifiers → date, ID/ref, issuer, subject.\n" +
-            "   Example: Invoice 2024-03-15 - ACME Corp - INV-00234\n\n" +
-            "3. If the ORIGINAL FILENAME already clearly and cleanly identifies the document\n" +
-            "   (no random strings, scan numbers, UUIDs) — respond with only: KEEP\n\n" +
-            "4. Allowed characters: letters, digits, spaces, hyphens, parentheses.\n" +
-            "   DO NOT use underscores (_). Use spaces or hyphens instead.\n" +
-            "   NO slashes, colons, asterisks or other special characters.\n" +
-            "   Maximum 120 characters. Do NOT include the file extension.\n\n" +
-            "5. Use natural title-case. Preserve acronyms (e.g. ISBN, OCR, PDF).\n" +
-            "6. Prefer hints from 'Extracted metadata' over raw document text when they conflict.\n" +
-            "7. Make sure to merge the online metadata with any useful information already present in the original filename (e.g. edition, part number, volume, subtitle) to ensure no context is lost.\n\n" +
-            "## Folder Shelving Rules (Organizing Library)\n" +
-            "You must determine the correct relative subfolder path (TargetSubfolder) where the document should be shelved within the top-level 'Library' directory.\n" +
-            "Choose the correct category and construct a logical relative subfolder path using backslashes (\\).\n" +
-            "The top-level structure MUST be one of these:\n" +
-            "  - Books\\<Subject> (e.g. Books\\Computer Science, Books\\Mathematics, Books\\Fiction)\n" +
-            "  - Research Papers\\<Field> (e.g. Research Papers\\Machine Learning, Research Papers\\Biomedical)\n" +
-            "  - Documentation\\<TechOrTool> (e.g. Documentation\\C#, Documentation\\Docker)\n" +
-            "  - Courses\\<CourseName> (e.g. Courses\\CS101, Courses\\Advanced SQL)\n" +
-            "  - Notes\\<Topic> (e.g. Notes\\Meeting Notes, Notes\\Recipes)\n" +
-            "  - Projects\\<ProjectName> (e.g. Projects\\FileRenamer, Projects\\WebsiteRedesign)\n" +
-            "  - Software\\<AppName> (e.g. Software\\Visual Studio Code, Software\\Ollama)\n" +
-            "  - Media\\<ImagesOrVideosOrAudio> (e.g. Media\\Screenshots, Media\\Audiobooks)\n" +
-            "  - Personal\\<Subtype> (e.g. Personal\\Resume, Personal\\Medical)\n" +
-            "  - Finance\\<Subtype> (e.g. Finance\\Invoices, Finance\\Tax Receipts, Finance\\Bank Statements)\n" +
-            "  - Government\\<Subtype> (e.g. Government\\Cards\\PAN Card, Government\\Passports, Government\\Tax Forms)\n" +
-            "  - Certificates\\<Subtype> (e.g. Certificates\\Degrees, Certificates\\Achievements, Certificates\\Course Certificates)\n" +
-            "  - Archive\\<YearOrTopic> (e.g. Archive\\2023, Archive\\Old Drafts)\n" +
-            "  - Unknown (if it does not fit any category)\n\n" +
-            "Response Format:\n" +
-            "You MUST format your entire response exactly like this:\n" +
-            "[Category: <CategoryName> | Path: <TargetSubfolder>] <SuggestedFilename>\n\n" +
-            "Examples:\n" +
-            "  - [Category: Books | Path: Books\\Computer Science] Clean Code - Robert C Martin (2008)\n" +
-            "  - [Category: Government | Path: Government\\Cards\\PAN Card] PAN Card - Amitendu (2024)\n" +
-            "  - [Category: Certificates | Path: Certificates\\Degrees] Bachelor Degree - Amitendu (2020)\n" +
-            "  - [Category: Finance | Path: Finance\\Invoices] Invoice 2024-03-15 - ACME Corp - INV-00234\n" +
-            "  - [Category: Unknown | Path: Unknown] KEEP\n\n" +
-            "Respond with ONLY the bracketed category/path prefix and suggested filename. No explanation, no quotes.";
+$@"You are an expert digital librarian and document cataloguing assistant.
+
+Your job is to analyze the supplied document, extract reliable metadata, classify it, and generate ONE optimal filename and ONE storage path.
+
+----------------------------
+DOCUMENT
+----------------------------
+
+{ctx}
+
+{metaBlock}
+
+Document content (first ~{textCap} chars):
+
+```
+{trimmed}
+```
+
+==================================================
+TASK 1 — IDENTIFY DOCUMENT TYPE
+==================================================
+
+Determine exactly ONE category.
+
+Possible categories:
+
+Books
+Research Papers
+Documentation
+Courses
+Notes
+Projects
+Software
+Media
+Personal
+Finance
+Government
+Certificates
+Archive
+Unknown
+
+==================================================
+TASK 2 — EXTRACT METADATA
+==================================================
+
+Extract whenever possible:
+
+• Title
+• Subtitle
+• Author(s)
+• Edition
+• Volume
+• Part
+• Series
+• Publisher
+• Year
+• Organization
+• Document Number
+• Date
+• Subject
+
+Metadata priority (highest first):
+
+1. Extracted metadata
+2. Original filename
+3. Document contents
+4. OCR text
+
+When conflicting information exists, trust higher-priority sources.
+
+==================================================
+TASK 3 — CLEAN METADATA
+==================================================
+
+Remove ALL noise including:
+
+• ISBN10
+• ISBN13
+• DOI unless research paper
+• MD5
+• SHA
+• UUID
+• CRC
+• Hashes
+• URLs
+• Website names
+• Digital library names
+• Watermarks
+• Download source
+• ""Anna's Archive""
+• ""Libgen""
+• ""Z-Library""
+• ""OceanofPDF""
+• ""PDFDrive""
+• uploader names
+• duplicate years
+• duplicate editions
+
+Correct OCR mistakes whenever obvious.
+
+Normalize whitespace.
+
+Normalize punctuation.
+
+==================================================
+TASK 4 — NORMALIZE AUTHOR NAMES
+==================================================
+
+Examples:
+
+Robert C Martin
+Martin Fowler
+Al Sweigart
+Gilbert Strang
+Andrew Hunt and David Thomas
+Erich Gamma, Richard Helm, Ralph Johnson and John Vlissides
+
+Never use:
+
+et al.
+Group
+Anonymous
+
+unless absolutely unavoidable.
+
+==================================================
+TASK 5 — NORMALIZE EDITIONS
+==================================================
+
+Convert all editions to:
+
+(2nd Edition)
+
+(3rd Edition)
+
+(4th Edition)
+
+...
+
+Examples:
+
+Third Edition
+3rd ed.
+Edition 3
+3e
+
+↓
+
+(3rd Edition)
+
+==================================================
+TASK 6 — GENERATE FILENAME
+==================================================
+
+Preferred format:
+
+Title (Edition) - Author(s) (Year)
+
+Examples:
+
+Clean Code - Robert C Martin (2008)
+
+The Pragmatic Programmer (2nd Edition) - Andrew Hunt and David Thomas (2020)
+
+Automate the Boring Stuff with Python (3rd Edition) - Al Sweigart (2025)
+
+Advanced Programming in the UNIX Environment (3rd Edition) - W Richard Stevens and Stephen A Rago (2013)
+
+Rules
+
+• Omit missing fields.
+• Never invent metadata.
+• Preserve subtitles when useful.
+• Preserve Part, Volume and Series.
+• Maximum filename length: 120 characters.
+• If necessary shorten the title before shortening author names.
+• Never truncate the year.
+• Do NOT include file extension.
+
+Allowed filename characters:
+
+Letters
+Numbers
+Spaces
+Hyphen (-)
+Parentheses ()
+
+Replace every invalid Windows filename character:
+
+< > : "" / \ | ? *
+
+with spaces.
+
+Collapse repeated spaces.
+
+==================================================
+TASK 7 — KEEP RULE
+==================================================
+
+Return KEEP ONLY if ALL conditions are true:
+
+• filename already follows the preferred format
+• metadata is correct
+• no hashes
+• no ISBN
+• no watermarks
+• no URLs
+• no duplicate years
+• no duplicate edition
+• no uploader names
+• no unnecessary punctuation
+
+Otherwise generate a cleaned filename.
+
+==================================================
+TASK 8 — DETERMINE LIBRARY PATH
+==================================================
+
+Choose ONE path.
+
+Books\<Subject>
+
+Research Papers\<Field>
+
+Documentation\<Technology>
+
+Courses\<Course>
+
+Notes\<Topic>
+
+Projects\<Project>
+
+Software\<Application>
+
+Media\<Subtype>
+
+Personal\<Subtype>
+
+Finance\<Subtype>
+
+Government\<Subtype>
+
+Certificates\<Subtype>
+
+Archive\<YearOrTopic>
+
+Unknown
+
+Examples:
+
+Books\Computer Science
+
+Books\Machine Learning
+
+Books\Mathematics
+
+Books\Programming
+
+Books\Operating Systems
+
+Research Papers\Machine Learning
+
+Documentation\Docker
+
+Finance\Invoices
+
+Government\Cards\PAN Card
+
+==================================================
+OUTPUT FORMAT
+==================================================
+
+Output EXACTLY ONE LINE.
+
+[Category: <Category> | Path: <RelativePath>] <Filename>
+
+Examples:
+
+[Category: Books | Path: Books\Programming] Clean Code - Robert C Martin (2008)
+
+[Category: Books | Path: Books\Operating Systems] Advanced Programming in the UNIX Environment (3rd Edition) - W Richard Stevens and Stephen A Rago (2013)
+
+[Category: Government | Path: Government\Cards\PAN Card] PAN Card - Amitendu (2024)
+
+[Category: Unknown | Path: Unknown] KEEP
+
+Output ONLY the single line.
+
+No markdown.
+
+No explanation.
+
+No quotes.";
 
         string rawResponse = "";
 
@@ -302,7 +539,7 @@ public class AiService
 
         if (string.IsNullOrWhiteSpace(name) || name.Equals("KEEP", StringComparison.OrdinalIgnoreCase))
         {
-            name = originalName;
+            name = SanitizeName(originalName);
         }
 
         return (category, path, name);
@@ -523,6 +760,30 @@ public class AiService
         name = name.Trim().Trim('"', '\'', '`').Trim();
         name = name.Split('\n')[0].Trim();
 
+        // Replace em-dash and en-dash with standard hyphens
+        name = name.Replace("—", "-").Replace("–", "-");
+
+        // Remove 32-char hex hashes (MD5 / UUIDs like ed3d25f26f400db1f9e92c22d0e727ea)
+        name = Regex.Replace(name, @"\b[a-fA-F0-9]{32}\b", "", RegexOptions.IgnoreCase);
+
+        // Remove ISBN strings (e.g. isbn13 9789356937529, isbn10 1234567890)
+        name = Regex.Replace(name, @"\b(?:isbn13|isbn10|isbn)\s*[\d-]+\b", "", RegexOptions.IgnoreCase);
+
+        // Remove common repository/website source watermarks if present
+        string[] siteWatermarks = new[]
+        {
+            "Anna's Archive", "Anna’s Archive", "Anna's-Archive", "annas-archive",
+            "Libgen", "Library Genesis", "Z-Library", "Z-Lib", "zlib", "zlib.pub",
+            "OceanofPDF", "PDFDrive"
+        };
+        foreach (var tag in siteWatermarks)
+        {
+            name = Regex.Replace(name, @"\s*[-–—]?\s*" + Regex.Escape(tag) + @"\b", "", RegexOptions.IgnoreCase);
+        }
+
+        // Replace duplicate consecutive years (e.g., "2023, 2023" or "2023 2023")
+        name = Regex.Replace(name, @"\b(\d{4})\s*[\s,]+\s*\1\b", "$1");
+
         // Replace underscores with spaces as requested
         name = name.Replace('_', ' ');
 
@@ -534,8 +795,9 @@ public class AiService
             name = name.Replace(c, '-');
 
         // Collapse multiple spaces/hyphens
-        while (name.Contains("  ")) name = name.Replace("  ", " ");
         while (name.Contains("--")) name = name.Replace("--", "-");
+        while (name.Contains(" - - ")) name = name.Replace(" - - ", " - ");
+        while (name.Contains("  ")) name = name.Replace("  ", " ");
 
         return name.Trim('-', ' ');
     }
