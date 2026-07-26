@@ -16,6 +16,7 @@
     <AppxManifest>Package.appxmanifest</AppxManifest>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <Version>1.0.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

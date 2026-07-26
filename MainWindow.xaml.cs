@@ -522,11 +522,8 @@ public sealed partial class MainWindow : Window
                     item.WasOcr        = extraction.WasOcr;
 
                     string onlineMetadata = "";
-                    if (item.Category == "Books")
-                    {
-                        this.DispatcherQueue.TryEnqueue(() => item.Status = "Searching online metadata…");
-                        onlineMetadata = await OnlineBookSearchService.SearchBookOnlineAsync(extraction.Text, item.OriginalName);
-                    }
+                    this.DispatcherQueue.TryEnqueue(() => item.Status = "Searching online metadata…");
+                    onlineMetadata = await OnlineBookSearchService.SearchBookOnlineAsync(extraction.Text, item.OriginalName);
 
                     this.DispatcherQueue.TryEnqueue(() => item.Status = "Asking model…");
 
